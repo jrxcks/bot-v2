@@ -1,43 +1,70 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
-import { getSessionState } from '@/lib/instagram/sessionStore';
 
-// Helper function to extract session ID from Authorization header
-function getSessionId(request: NextRequest): string | null {
+// Renamed helper function for clarity
+function getAuthToken(request: Request): string | null {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        return authHeader.substring(7);
+        return authHeader.substring(7); // Remove 'Bearer ' prefix
     }
     return null;
 }
 
-// Update function signature to use NextRequest and context
+// Updated signature to use destructured params pattern exactly as in Next.js docs
 export async function GET(
   request: Request,
-  context: { params: { threadId: string } }
+  { params }: { params: { threadId: string } }
 ) {
-  const threadId = context.params.threadId;
-  const sessionId = getSessionId(request as NextRequest);
+  const threadId = params.threadId;
+  const authToken = getAuthToken(request); // Use renamed helper
 
-  if (!sessionId) {
-    return NextResponse.json({ success: false, error: 'Unauthorized: Missing session ID' }, { status: 401 });
+  if (!authToken) {
+    // Changed session ID to auth token in message
+    return NextResponse.json({ success: false, error: 'Unauthorized: Missing auth token' }, { status: 401 });
   }
   if (!threadId) {
       return NextResponse.json({ success: false, error: 'Missing thread ID' }, { status: 400 });
   }
 
   try {
-    // Retrieve state string from KV using sessionId
-    const stateString = await getSessionState(sessionId); 
-    if (!stateString) {
-        console.warn(`Thread API: Session state not found in KV for ID: ${sessionId.substring(0, 6)}`);
-        return NextResponse.json({ success: false, error: 'Session not found or expired.' }, { status: 401 });
-    }
+    // Removed session store lookup:
+    // const stateString = await getSessionState(sessionId); 
+    // if (!stateString) { ... }
 
     const client = new InstagramClient();
-    // Deserialize using the state string from KV
-    await client.deserializeFullState(stateString); 
+    
+    // Create a state object structure similar to the 'send' route
+    const stateObj = {
+        cookies: [
+            {
+                key: 'authorization',
+                value: authToken,
+                domain: 'i.instagram.com',
+                path: '/',
+                hostOnly: true,
+                secure: true, 
+                httpOnly: true,
+                creation: new Date().toISOString(),
+                lastAccessed: new Date().toISOString()
+            }
+            // ds_user_id and other cookies might be needed depending on client library behavior
+        ],
+        cookieJar: { // Include a minimal cookie jar structure if needed by deserializeFullState
+            version: 'tough-cookie@4.1.2', // Example version
+            storeType: 'MemoryCookieStore',
+            rejectPublicSuffixes: true,
+            cookies: [] // Initially empty, `deserializeFullState` might populate it
+        }
+        // Device info is likely handled internally by the client on deserialize
+    };
 
+    // Serialize the minimal state object to JSON string
+    const stateString = JSON.stringify(stateObj);
+
+    // Deserialize using the minimal state string
+    await client.deserializeFullState(stateString);
+
+    // Fetch thread data
     const threadData = await client.getThread(threadId);
     
     // Use the data structure returned by the simplified getThread
@@ -54,13 +81,18 @@ export async function GET(
     });
 
   } catch (e: unknown) {
+      // Keep existing error handling
       console.error(`Thread API Error for ${threadId}:`, e);
       let errorMessage = `Failed to fetch thread ${threadId}.`;
       let statusCode = 500;
       if (e instanceof Error) {
           errorMessage = e.message;
-          if (errorMessage.includes('Session expired') || errorMessage.includes('invalid') || errorMessage.includes('deserialize')) {
-              statusCode = 401;
+          // Check for session/authentication errors
+          if (errorMessage.includes('Session expired') || 
+              errorMessage.includes('invalid') || 
+              errorMessage.includes('deserialize') || 
+              errorMessage.includes('login required')) { // Added 'login required'
+              statusCode = 401; // Unauthorized
           }
       }
       return NextResponse.json({ success: false, error: errorMessage }, { status: statusCode });

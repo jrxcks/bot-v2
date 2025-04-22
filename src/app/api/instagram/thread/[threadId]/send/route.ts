@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
 
-// Helper function to extract state header
-function getSessionState(request: Request): string | null {
-    return request.headers.get('X-Instagram-State');
+// Helper function to extract auth token from Authorization header
+function getAuthToken(request: Request): string | null {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  return authHeader.substring(7); // Remove 'Bearer ' prefix
 }
 
 export async function POST(
@@ -11,8 +15,7 @@ export async function POST(
   { params }: { params: { threadId: string } }
 ) {
     const threadId = params.threadId;
-    // Get the full state string from the custom header
-    const sessionState = getSessionState(request);
+    const authToken = getAuthToken(request);
     let message: string | undefined;
 
     try {
@@ -22,8 +25,8 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
     }
 
-    if (!sessionState) {
-        return NextResponse.json({ success: false, error: 'Unauthorized: Missing session state' }, { status: 401 });
+    if (!authToken) {
+        return NextResponse.json({ success: false, error: 'Unauthorized: Missing auth token' }, { status: 401 });
     }
     if (!threadId) {
         return NextResponse.json({ success: false, error: 'Missing thread ID' }, { status: 400 });
@@ -34,8 +37,33 @@ export async function POST(
 
     try {
         const client = new InstagramClient();
-        // Load state using the full state string
-        await client.deserializeFullState(sessionState); 
+        
+        // Create a state object with just the auth token
+        const stateObj = {
+            cookies: [
+                {
+                    key: 'authorization',
+                    value: authToken,
+                    domain: 'i.instagram.com',
+                    path: '/',
+                    hostOnly: true,
+                    creation: new Date().toISOString(),
+                    lastAccessed: new Date().toISOString()
+                }
+            ],
+            cookieJar: {
+                version: 'tough-cookie@4.1.2',
+                storeType: 'MemoryCookieStore',
+                rejectPublicSuffixes: true,
+                cookies: []
+            }
+        };
+        
+        // Serialize the state object to JSON
+        const stateString = JSON.stringify(stateObj);
+        
+        // Use the existing deserializeFullState method
+        await client.deserializeFullState(stateString);
 
         const result = await client.sendMessage(threadId, message.trim());
 
@@ -48,8 +76,11 @@ export async function POST(
 
         if (e instanceof Error) {
             errorMessage = e.message;
-            // Check for session/deserialize errors
-            if (errorMessage.includes('Session expired') || errorMessage.includes('invalid') || errorMessage.includes('deserialize')) {
+            // Check for session/authentication errors
+            if (errorMessage.includes('Session expired') || 
+                errorMessage.includes('invalid') || 
+                errorMessage.includes('deserialize') ||
+                errorMessage.includes('login')) {
                 statusCode = 401; // Unauthorized
             }
         }
