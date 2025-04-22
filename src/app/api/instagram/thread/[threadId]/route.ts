@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
 
 // Renamed helper function for clarity
@@ -12,7 +12,7 @@ function getAuthToken(request: Request): string | null {
 
 // Updated signature to use destructured params pattern exactly as in Next.js docs
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { threadId: string } }
 ) {
   const threadId = params.threadId;
