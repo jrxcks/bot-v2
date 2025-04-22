@@ -4,10 +4,21 @@ import { IgApiClient, IgLoginBadPasswordError, IgLoginInvalidUserError, IgLoginT
 import { promises as fs } from 'fs';
 import path from 'path';
 
+// Define Message interface (assuming structure)
+interface Message {
+    item_id: string;
+    user_id: number; // Assuming user_id is number based on library usage
+    timestamp: string; // Keep as string from API
+    item_type: string;
+    // Add other relevant fields if known, e.g., text for text messages
+    text?: string; 
+    // Add other item types if needed (e.g., link, media)
+}
+
 // Define a type for the simplified data returned by getThread
 interface SimplifiedThreadData {
   thread_id: string;
-  items: unknown[]; // Keep items as unknown for now
+  items: Message[]; // Use the specific Message type
   viewer_id: string | null;
 }
 

@@ -71,7 +71,7 @@ export async function GET(
             thread: { 
                 thread_id: threadData.thread_id,
                 users: [], 
-                items: (threadData.items ?? []) as any[], 
+                items: threadData.items ?? [], 
                 viewer_id: threadData.viewer_id 
             }
         } 
