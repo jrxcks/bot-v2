@@ -13,9 +13,9 @@ function getAuthToken(request: Request): string | null {
 // Updated signature to use destructured params pattern exactly as in Next.js docs
 export async function GET(
   request: Request,
-  { params }: { params: { threadId: string } }
+  context: { params: { threadId: string } }
 ) {
-  const threadId = params.threadId;
+  const threadId = context.params.threadId;
   const authToken = getAuthToken(request); // Use renamed helper
 
   if (!authToken) {
