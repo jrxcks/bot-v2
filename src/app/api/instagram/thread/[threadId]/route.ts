@@ -13,11 +13,11 @@ function getSessionId(request: NextRequest): string | null {
 
 // Update function signature to use NextRequest and context
 export async function GET(
-  request: NextRequest, 
+  request: Request,
   context: { params: { threadId: string } }
 ) {
   const threadId = context.params.threadId;
-  const sessionId = getSessionId(request);
+  const sessionId = getSessionId(request as NextRequest);
 
   if (!sessionId) {
     return NextResponse.json({ success: false, error: 'Unauthorized: Missing session ID' }, { status: 401 });
