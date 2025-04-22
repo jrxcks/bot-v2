@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { InstagramClient, SimplifiedThreadData } from '@/lib/instagram/client';
 
 // Keep helper function
-function getAuthToken(request: Request): string | null {
+function getAuthToken(request: NextRequest): string | null {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
         return authHeader.substring(7);
@@ -11,10 +11,12 @@ function getAuthToken(request: Request): string | null {
 }
 
 export async function GET(
-  request: Request, // Use standard Request
-  { params }: { params: { threadId: string } } // Use destructured params signature
+  request: NextRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any // Use 'any' type assertion as workaround
 ) {
-  const threadId = params.threadId;
+  // Access params from context, assuming structure & add type assertion
+  const threadId = context?.params?.threadId as string | undefined;
 
   // --- Remove Simplified Logic Start ---
   // console.log(`Simplified GET handler called for threadId: ${threadId}`)
@@ -32,6 +34,7 @@ export async function GET(
     return NextResponse.json({ success: false, error: 'Unauthorized: Missing auth token' }, { status: 401 });
   }
   if (!threadId) {
+      // Type guard ensures threadId is string below
       return NextResponse.json({ success: false, error: 'Missing thread ID' }, { status: 400 });
   }
 
@@ -63,7 +66,7 @@ export async function GET(
     const stateString = JSON.stringify(stateObj);
     await client.deserializeFullState(stateString);
     
-    // Explicitly type the result of getThread
+    // Ensure SimplifiedThreadData is used here
     const threadData: SimplifiedThreadData = await client.getThread(threadId);
     
     return NextResponse.json({ 

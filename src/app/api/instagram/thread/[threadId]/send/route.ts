@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
 
 // Helper function to extract auth token from Authorization header
-function getAuthToken(request: Request): string | null {
+function getAuthToken(request: NextRequest): string | null {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
@@ -11,10 +11,11 @@ function getAuthToken(request: Request): string | null {
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { threadId: string } }
+  request: NextRequest,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any
 ) {
-    const threadId = params.threadId;
+    const threadId = context?.params?.threadId as string | undefined;
     const authToken = getAuthToken(request);
     let message: string | undefined;
 
