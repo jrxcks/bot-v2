@@ -49,27 +49,43 @@ export default function InboxPage() {
       console.log("InboxPage: Fetching thread list...");
       setLoadingThreads(true);
       setError('');
+      
+      // *** Remove the delay ***
+      // await new Promise(resolve => setTimeout(resolve, 100)); 
+      // console.log("InboxPage: Delay finished, reading localStorage.");
+      
       try {
-        const sessionId = localStorage.getItem('instagramSessionId');
+        // Get session ID from localStorage
+        const sessionId = localStorage.getItem('instagramSessionId'); 
+        console.log("InboxPage fetchInboxList: Retrieved sessionId...", sessionId ? sessionId.substring(0, 6) + '...' : 'null'); // Log session ID
         if (!sessionId) {
+          console.log('InboxPage List: No session ID found. Redirecting.');
           router.push('/');
           return;
         }
 
+        console.log("InboxPage List: Sending Authorization header.");
         const response = await fetch('/api/instagram/inbox', {
-          headers: { 'Authorization': `Bearer ${sessionId}` },
+          headers: { 
+              // Send session ID as Bearer token
+              'Authorization': `Bearer ${sessionId}` 
+          },
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` }));
-             if (response.status === 401 || errorData?.error?.includes('Session expired') || errorData?.error?.includes('invalid or expired') || errorData?.error?.includes('Session not found')) {
-                console.log('InboxPage List: Session expired/invalid. Clearing session.');
-                localStorage.removeItem('instagramSessionId');
+            console.error("InboxPage List: API Error Response Data:", errorData); 
+            // Simplify check for session errors
+             if (response.status === 401 || errorData?.error?.includes('Session expired') || errorData?.error?.includes('invalid')) { 
+                console.log('InboxPage List: Session expired/invalid detected in API response. Clearing session.');
+                localStorage.removeItem('instagramSessionId'); // Clear session ID
                 localStorage.removeItem('instagramUserId');
                 router.push('/');
                 return;
             }
-            throw new Error(errorData.error || `Failed to fetch inbox list (${response.status})`);
+            const thrownErrorMessage = errorData.error || `Failed to fetch inbox list (${response.status})`;
+            console.error("InboxPage List: Throwing fetch error:", thrownErrorMessage);
+            throw new Error(thrownErrorMessage);
         }
 
         const data = await response.json();
@@ -83,8 +99,9 @@ export default function InboxPage() {
           throw new Error(data.error || 'Invalid inbox list data received');
         }
       } catch (err) {
-         console.error("InboxPage List: Caught fetch error:", err);
-        setError(err instanceof Error ? err.message : 'Failed to load threads');
+         // Log the final caught error
+         console.error("InboxPage List: Caught final fetch error in catch block:", err); 
+         setError(err instanceof Error ? err.message : 'Failed to load threads');
       } finally {
         setLoadingThreads(false);
       }

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
+import { storeSessionState } from '@/lib/instagram/sessionStore'; // Import KV store function
+import crypto from 'crypto'; // For generating unique session ID
 
 export async function POST(request: Request) {
   try {
@@ -12,31 +14,42 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const client = new InstagramClient(); 
-    // login returns the full state object, but we only need parts of it
-    const stateObject = await client.login(username, password) as any; 
+    const client = new InstagramClient(username); // Pass username for state file handling
+    await client.login(username, password);
+    
+    // Serialize the full state object
+    const fullStateObject = await client.ig.state.serialize();
+    const userId = client.currentUserId; // Get user ID after login
 
-    // Extract the essential authorization token
-    const authToken = stateObject?.authorization;
-    if (!authToken) {
-        console.error("Login succeeded but no authorization token found in state object");
-        throw new Error('Login failed: Missing authorization token');
+    if (!fullStateObject || !userId) {
+        console.error("Login succeeded but failed to get full state or user ID");
+        throw new Error('Login failed: Could not retrieve session details');
     }
 
-    // Return only the auth token (as sessionId) and user ID
+    // Generate a unique session ID
+    const sessionId = crypto.randomUUID();
+    const sessionStateString = JSON.stringify(fullStateObject);
+
+    // Store the full state string in Vercel KV
+    await storeSessionState(sessionId, sessionStateString);
+
+    // Return only the session ID and user ID to the client
     return NextResponse.json({ 
       success: true, 
       message: 'Login successful',
-      sessionId: authToken, // Send the auth token
-      userId: client.currentUserId 
+      sessionId: sessionId, // Send the NEW session ID
+      userId: userId 
     });
 
-  } catch (error) {
-    console.error('Login API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Login failed';
+  } catch (e: unknown) {
+    console.error('Login API error:', e);
+    // Simplify error handling for now
+    const errorMessage = e instanceof Error ? e.message : 'Login failed due to an unknown error';
     let status = 500;
-    if (errorMessage.includes('Incorrect username') || errorMessage.includes('Incorrect password') || errorMessage.includes('checkpoint_required')) {
-      status = 401; // Unauthorized
+    if (errorMessage.includes('Invalid username or password') || errorMessage.includes('checkpoint_required') || errorMessage.includes('Two-factor')) {
+      status = 401; // Unauthorized or specific action needed
+    } else if (errorMessage.includes('Sentry')) {
+        status = 403; // Forbidden
     }
     
     return NextResponse.json({ 

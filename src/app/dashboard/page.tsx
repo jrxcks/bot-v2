@@ -8,7 +8,7 @@ import {
   CardHeader, 
   CardTitle 
 } from "@/components/ui/card"; // Assuming shadcn setup
-import { Activity, MessageSquareText, CornerDownRight, Inbox, Bot } from "lucide-react"; // Icons for stats
+import { MessageSquareText, CornerDownRight, Inbox, Bot } from "lucide-react"; // Icons for stats
 
 interface MessageThread {
   thread_id: string;
@@ -24,7 +24,7 @@ interface MessageThread {
     reel_auto_archive: string;
     allowed_commenter_type: string;
   }>;
-  thread_items: any[]; // Array of message items (use specific type if known)
+  thread_items: unknown[]; // Changed from any[]
   last_activity_at: number; // Timestamp (microseconds)
   muted: boolean;
   is_pin: boolean;
@@ -44,16 +44,16 @@ interface MessageThread {
   input_mode: number;
   business_thread_folder: number;
   read_state: number;
-  inviter: any; // Use specific type if known
+  inviter: unknown; // Changed from any
   has_older: boolean;
   has_newer: boolean;
   last_seen_at: Record<string, { timestamp: string, item_id: string }>;
   newest_cursor: string;
   oldest_cursor: string;
-  next_cursor: any; // Use specific type if known
-  prev_cursor: any; // Use specific type if known
+  next_cursor: unknown; // Changed from any
+  prev_cursor: unknown; // Changed from any
   is_spam: boolean;
-  last_permanent_item: any; // Use specific type if known
+  last_permanent_item: unknown; // Changed from any
 }
 
 export default function Dashboard() {
@@ -68,32 +68,32 @@ export default function Dashboard() {
       setLoading(true); 
       setError(''); 
       try {
-        // Get session ID from localStorage
-        const sessionId = localStorage.getItem('instagramSessionId');
-        console.log("Dashboard useEffect: Found sessionId in localStorage:", sessionId);
+        // Get session STATE from localStorage
+        const sessionState = localStorage.getItem('instagramSessionState');
+        console.log("Dashboard useEffect: Found sessionState:", sessionState ? sessionState.substring(0, 50) + '...' : 'null');
 
-        if (!sessionId) {
-          console.log('Dashboard useEffect: No sessionId found! Redirecting to login.');
+        if (!sessionState) {
+          console.log('Dashboard useEffect: No sessionState found! Redirecting to login.');
           router.push('/');
           return;
         }
 
-        console.log("Dashboard useEffect: Making API call to /api/instagram/inbox");
+        console.log("Dashboard useEffect: Making API call to /api/instagram/inbox with state header.");
         const response = await fetch('/api/instagram/inbox', {
           headers: {
-            // Send session ID in header
-            'Authorization': `Bearer ${sessionId}`,
+            // Send state in custom header
+            'X-Instagram-State': sessionState,
           },
         });
         console.log("Dashboard useEffect: API response status:", response.status);
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({ error: `HTTP error ${response.status}` })); 
-            console.error("Dashboard useEffect: API error response:", errorData);
+            console.error("Dashboard useEffect: API Error Response Data:", errorData);
             // Check if the error indicates an invalid/expired session on the server
-            if (response.status === 401 || errorData?.error?.includes('Session expired') || errorData?.error?.includes('invalid or expired')) {
+            if (response.status === 401 || errorData?.error?.includes('Session expired') || errorData?.error?.includes('invalid') || errorData?.error?.includes('deserialize') || errorData?.error?.includes('Missing session state')) {
                 console.log('Dashboard useEffect: Session expired/invalid on server. Clearing local session and redirecting.');
-                localStorage.removeItem('instagramSessionId');
+                localStorage.removeItem('instagramSessionState');
                 localStorage.removeItem('instagramUserId');
                 router.push('/');
                 return;
@@ -120,9 +120,7 @@ export default function Dashboard() {
     };
 
     fetchInbox();
-  // Add router to dependency array if its instance might change, though unlikely needed here.
-  //}, [router]); 
-  }, []); // Keep dependency array empty to run once on mount
+  }, [router]); // Keep router dependency
 
   const handleThreadClick = (threadId: string) => {
     // Navigate to the inbox page with the threadId as a query parameter
@@ -133,7 +131,6 @@ export default function Dashboard() {
   const totalThreads = threads.length;
   const unreadCount = 0; // Placeholder
   const repliedCount = 0; // Placeholder
-  const newTodayCount = 0; // Placeholder
 
   // Loading State UI
   if (loading) {

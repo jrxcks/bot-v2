@@ -54,15 +54,21 @@ export default function ConversationView({ threadId }: ConversationViewProps) {
       setLoading(true);
       setError('');
       try {
+        // Get session ID from localStorage
         const sessionId = localStorage.getItem('instagramSessionId');
+        console.log(`ConversationView fetchThread (${threadId}): Retrieved sessionId:`, sessionId ? sessionId.substring(0, 6) + '...' : 'null'); 
         if (!sessionId) {
-          console.log(`ConversationView (${threadId}): No sessionId found! Redirecting.`);
+          console.log(`ConversationView fetchThread (${threadId}): No sessionId found! Redirecting.`);
           router.push('/'); 
           return;
         }
 
+        console.log(`ConversationView fetchThread (${threadId}): Making API call...`);
         const response = await fetch(`/api/instagram/thread/${threadId}`, {
-          headers: { 'Authorization': `Bearer ${sessionId}` },
+          headers: { 
+              // Send session ID as Bearer token
+              'Authorization': `Bearer ${sessionId}` 
+          },
         });
 
         if (!response.ok) {
@@ -112,24 +118,28 @@ export default function ConversationView({ threadId }: ConversationViewProps) {
     if (!newMessage.trim() || !threadId) return;
     setError(''); 
 
-    // Store current message to potentially add optimistically
     const messageToSend = newMessage;
     setNewMessage(''); // Clear input immediately
 
     try {
+      // Get session ID from localStorage
       const sessionId = localStorage.getItem('instagramSessionId');
+      console.log(`ConversationView sendMessage (${threadId}): Retrieved sessionId:`, sessionId ? sessionId.substring(0, 6) + '...' : 'null');
       if (!sessionId) {
+        console.log(`ConversationView sendMessage (${threadId}): No sessionId found! Redirecting.`);
         router.push('/');
         return;
       }
 
+      console.log(`ConversationView sendMessage (${threadId}): Making API call...`);
       const response = await fetch(`/api/instagram/thread/${threadId}/send`, { 
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${sessionId}`,
+          // Send session ID as Bearer token
+          'Authorization': `Bearer ${sessionId}`, 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageToSend }), // Use stored message
+        body: JSON.stringify({ message: messageToSend }),
       });
 
       const result = await response.json();

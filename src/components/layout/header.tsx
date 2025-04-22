@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from 'next/navigation';
 import {
   PanelLeft, // Icon for trigger
-  Search,
   Package2, // Placeholder icon for mobile nav
 } from "lucide-react"
 
@@ -24,7 +23,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"; // Import the trigger
@@ -125,16 +123,6 @@ export default function Header() {
 
       {/* Spacer to push user menu to the right */}
       <div className="ml-auto flex items-center gap-2"> 
-        {/* Search (Optional) */}
-        {/* <div className="relative flex-1 md:grow-0">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search..."
-            className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-          />
-        </div> */} 
-
         {/* User Menu Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

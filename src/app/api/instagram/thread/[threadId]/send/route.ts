@@ -1,76 +1,58 @@
 import { NextResponse } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
 
-// Helper function to extract Auth Token
-function getAuthToken(request: Request): string | null {
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  return null;
+// Helper function to extract state header
+function getSessionState(request: Request): string | null {
+    return request.headers.get('X-Instagram-State');
 }
 
 export async function POST(
   request: Request,
   { params }: { params: { threadId: string } }
 ) {
-  let client: InstagramClient | null = null;
-  try {
     const threadId = params.threadId;
-    const { message } = await request.json();
+    // Get the full state string from the custom header
+    const sessionState = getSessionState(request);
+    let message: string | undefined;
 
-    if (!threadId || !message) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Thread ID and message are required' 
-      }, { status: 400 });
-    }
-
-    // Get AUTH TOKEN
-    const authToken = getAuthToken(request);
-    if (!authToken) {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Missing authorization token' }, { status: 401 });
-    }
-
-    client = new InstagramClient();
-    
-    // Deserialize using token and basic device info
     try {
-        console.log(`Send Message (${threadId}): Deserializing with token:`, authToken ? 'present' : 'missing'); // Log presence
-        await client.ig.state.deserialize({ 
-            authorization: authToken,
-            deviceString: 'iPhone14,3',
-            deviceId: 'ios-14.3'
-        });
-        console.log(`Send Message (${threadId}): Session state deserialized.`);
-    } catch (deserializeError) {
-         console.error("Failed to deserialize state:", deserializeError);
-         return NextResponse.json({ success: false, error: 'Invalid or expired session token' }, { status: 401 });
+        const body = await request.json();
+        message = body.message;
+    } catch (e) {
+        return NextResponse.json({ success: false, error: 'Invalid request body' }, { status: 400 });
     }
 
-    if (!client.ig.state.cookieUserId) {
-        console.error(`Send Message (${threadId}): Deserialized state appears invalid.`);
-        throw new Error('Deserialized state is invalid or expired.');
+    if (!sessionState) {
+        return NextResponse.json({ success: false, error: 'Unauthorized: Missing session state' }, { status: 401 });
     }
-    client.currentUserId = client.ig.state.cookieUserId;
-    console.log(`Send Message (${threadId}): State valid for user:`, client.currentUserId);
-
-    const sendResult = await client.sendMessage(threadId, message);
-
-    return NextResponse.json({ success: true, data: sendResult });
-
-  } catch (error) {
-    console.error(`Send message API error (Thread ID: ${params.threadId}):`, error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error sending message';
-    let status = 500;
-    if (errorMessage.includes('Session expired') || errorMessage.includes('not initialized') || errorMessage.includes('invalid or expired')) {
-      status = 401;
+    if (!threadId) {
+        return NextResponse.json({ success: false, error: 'Missing thread ID' }, { status: 400 });
     }
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      data: null
-    }, { status: status });
-  }
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return NextResponse.json({ success: false, error: 'Message content is required' }, { status: 400 });
+    }
+
+    try {
+        const client = new InstagramClient();
+        // Load state using the full state string
+        await client.deserializeFullState(sessionState); 
+
+        const result = await client.sendMessage(threadId, message.trim());
+
+        return NextResponse.json({ success: true, data: result });
+
+    } catch (e: unknown) {
+        console.error(`Send Message API Error for ${threadId}:`, e);
+        let errorMessage = `Failed to send message to thread ${threadId}.`;
+        let statusCode = 500;
+
+        if (e instanceof Error) {
+            errorMessage = e.message;
+            // Check for session/deserialize errors
+            if (errorMessage.includes('Session expired') || errorMessage.includes('invalid') || errorMessage.includes('deserialize')) {
+                statusCode = 401; // Unauthorized
+            }
+        }
+        return NextResponse.json({ success: false, error: errorMessage }, { status: statusCode });
+    }
 } 

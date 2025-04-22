@@ -40,11 +40,12 @@ export default function LoginPage() {
       if (response.ok && data.success && data.sessionId && data.userId) {
         localStorage.setItem('instagramSessionId', data.sessionId);
         localStorage.setItem('instagramUserId', data.userId);
+        localStorage.removeItem('instagramSessionState');
         localStorage.removeItem('instagramState');
         localStorage.removeItem('instagramSession');
         router.push('/dashboard');
       } else {
-        setError(data.error || 'Login failed - Check credentials or server status');
+        setError(data.error || 'Login failed - Missing session ID');
       }
     } catch (err) {
       setError('Failed to login. Please check your connection and credentials.');

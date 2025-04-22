@@ -3,74 +3,45 @@ import { InstagramClient } from '@/lib/instagram/client';
 // Removed session store import
 // import { getSessionState } from '@/lib/instagram/sessionStore';
 
-// Helper function to extract Auth Token (Session ID)
-function getAuthToken(request: Request): string | null {
-  const authHeader = request.headers.get('Authorization');
-  if (authHeader?.startsWith('Bearer ')) {
-    return authHeader.substring(7);
-  }
-  return null;
+// Helper function to extract state header
+function getSessionState(request: Request): string | null {
+    return request.headers.get('X-Instagram-State');
 }
 
 export async function GET(request: Request) {
-  let client: InstagramClient | null = null;
-  try {
-    // Get the AUTH TOKEN from the header
-    const authToken = getAuthToken(request);
-    if (!authToken) {
-      return NextResponse.json({ success: false, error: 'Unauthorized: Missing authorization token' }, { status: 401 });
+    // Get the full state string from the custom header
+    const sessionState = getSessionState(request);
+    console.log("Inbox API: Received X-Instagram-State header:", sessionState ? sessionState.substring(0, 50) + '...' : 'null'); // Log first part
+
+    if (!sessionState) {
+        return NextResponse.json({ success: false, error: 'Unauthorized: Missing session state' }, { status: 401 });
     }
 
-    // Create new client instance
-    client = new InstagramClient();
-    
-    // Deserialize using ONLY the auth token and basic device info
-    // The library might regenerate other needed state based on this
     try {
-        console.log('Inbox route: Deserializing with token:', authToken);
-        await client.ig.state.deserialize({ 
-            authorization: authToken,
-            // Add minimal, consistent device info (same as used in login potentially)
-            deviceString: 'iPhone14,3', 
-            deviceId: 'ios-14.3' 
-            // NOTE: Avoid adding things like UUID/PhoneID/ADID here unless known to be stable
-            // and captured during login and stored client-side (which adds complexity).
-            // The library might regenerate necessary session cookies based on the auth token.
-        });
-        console.log('Inbox route: Session state deserialized.');
-    } catch (deserializeError) {
-         console.error("Failed to deserialize state:", deserializeError);
-         // If deserialize fails, it's likely an invalid token
-         return NextResponse.json({ success: false, error: 'Invalid or expired session token' }, { status: 401 });
-    }
+        const client = new InstagramClient(); // Create instance
+        // Load state using the full state string
+        await client.deserializeFullState(sessionState); 
 
-    // Verify state after deserialize using cookieUserId
-    if (!client.ig.state.cookieUserId) {
-        console.error('Inbox route: Deserialized state appears invalid (missing cookieUserId).');
-        throw new Error('Deserialized state is invalid or expired.');
-    }
-    client.currentUserId = client.ig.state.cookieUserId;
-    console.log('Inbox route: State valid for user:', client.currentUserId);
+        // Fetch inbox after state is loaded
+        const inboxData = await client.getInbox(); // Assuming getInbox returns the threads array directly now
+        
+        // Adjust return structure based on what getInbox provides
+        return NextResponse.json({ success: true, data: inboxData ?? [] }); 
 
-    const inboxData = await client.getInbox();
-    
-    return NextResponse.json({
-      success: true,
-      data: inboxData?.inbox?.threads || [] 
-    });
+    } catch (e: unknown) {
+        // Log the detailed error
+        console.error("Inbox API Error Caught:", e instanceof Error ? e.stack : String(e)); 
+        let errorMessage = "Failed to fetch inbox.";
+        let statusCode = 500;
 
-  } catch (error) {
-    console.error('Inbox fetch API error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error fetching inbox';
-    let status = 500;
-    if (errorMessage.includes('Session expired') || errorMessage.includes('not initialized') || errorMessage.includes('invalid or expired')) {
-      status = 401; 
+        if (e instanceof Error) {
+            errorMessage = e.message;
+            if (errorMessage.includes('Session expired') || errorMessage.includes('invalid') || errorMessage.includes('deserialize')) {
+                statusCode = 401; 
+            }
+        }
+        // Log the response being sent back
+        console.error(`Inbox API Responding with Error: Status ${statusCode}, Message: ${errorMessage}`);
+        return NextResponse.json({ success: false, error: errorMessage }, { status: statusCode });
     }
-    
-    return NextResponse.json({
-      success: false,
-      error: errorMessage,
-      data: []
-    }, { status: status });
-  }
 } 

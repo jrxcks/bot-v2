@@ -1,6 +1,6 @@
 import Sidebar from '@/components/layout/sidebar';
 import Header from '@/components/layout/header'; // We will create this next
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"; // Import provider and inset
+import { SidebarProvider } from "@/components/ui/sidebar"; // Remove SidebarInset
 
 export default function DashboardLayout({
   children, // will be a page or nested layout
