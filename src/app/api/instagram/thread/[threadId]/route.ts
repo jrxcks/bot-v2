@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-// Restore import
-import { InstagramClient } from '@/lib/instagram/client';
+import { InstagramClient, SimplifiedThreadData } from '@/lib/instagram/client';
 
 // Keep helper function
 function getAuthToken(request: Request): string | null {
@@ -63,7 +62,9 @@ export async function GET(
 
     const stateString = JSON.stringify(stateObj);
     await client.deserializeFullState(stateString);
-    const threadData = await client.getThread(threadId);
+    
+    // Explicitly type the result of getThread
+    const threadData: SimplifiedThreadData = await client.getThread(threadId);
     
     return NextResponse.json({ 
         success: true, 

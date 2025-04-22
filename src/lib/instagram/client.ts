@@ -5,7 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 // Define Message interface (assuming structure)
-interface Message {
+export interface Message {
     item_id: string;
     user_id: number; // Assuming user_id is number based on library usage
     timestamp: string; // Keep as string from API
@@ -16,7 +16,7 @@ interface Message {
 }
 
 // Define a type for the simplified data returned by getThread
-interface SimplifiedThreadData {
+export interface SimplifiedThreadData {
   thread_id: string;
   items: Message[]; // Use the specific Message type
   viewer_id: string | null;
