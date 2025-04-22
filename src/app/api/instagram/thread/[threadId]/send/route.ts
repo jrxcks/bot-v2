@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { InstagramClient } from '@/lib/instagram/client';
 
 // Helper function to extract auth token from Authorization header
