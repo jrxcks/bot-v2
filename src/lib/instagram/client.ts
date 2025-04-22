@@ -4,6 +4,13 @@ import { IgApiClient, IgLoginBadPasswordError, IgLoginInvalidUserError, IgLoginT
 import { promises as fs } from 'fs';
 import path from 'path';
 
+// Define a type for the simplified data returned by getThread
+interface SimplifiedThreadData {
+  thread_id: string;
+  items: unknown[]; // Keep items as unknown for now
+  viewer_id: string | null;
+}
+
 export class InstagramClient {
   public ig: IgApiClient; // Make ig public to allow direct state access
   public currentUserId: string | null = null; // Keep track of user ID if needed after deserialize
@@ -153,19 +160,16 @@ export class InstagramClient {
     }
   }
 
-  async getThread(threadId: string): Promise<unknown> {
+  // Update method signature to use the specific return type
+  async getThread(threadId: string): Promise<SimplifiedThreadData> { 
     console.log(`(${this.currentUserId}) Fetching thread ${threadId}...`);
     if (!this.currentUserId) throw new Error("Session not properly initialized for getThread.");
     try {
-      // Provide oldest_cursor as required by types - use empty string
       const threadFeed = this.ig.feed.directThread({ thread_id: threadId, oldest_cursor: '' }); 
       const items = await threadFeed.items();
-      // TODO: Find reliable way to get thread entity (users, title) if needed
-      // For now, return items and basic info
       return {
           thread_id: threadId, 
           items: items,
-          // Add viewer_id from current state
           viewer_id: this.currentUserId 
       };
     } catch (e: unknown) {
@@ -173,7 +177,7 @@ export class InstagramClient {
        if (this.isSessionExpiredError(e)) {
            throw new Error("Session expired or invalid.");
        }
-      throw new Error("Failed to fetch thread items."); // More specific error
+      throw new Error("Failed to fetch thread items."); 
     }
   }
 
