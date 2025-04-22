@@ -1,12 +1,8 @@
-import { IgApiClient, IgLoginBadPasswordError, IgLoginInvalidUserError, IgLoginTwoFactorRequiredError, IgCheckpointError, IgSentryBlockError, IgChallengeWrongCodeError } from 'instagram-private-api';
+import { IgApiClient, IgLoginBadPasswordError, IgLoginInvalidUserError, IgLoginTwoFactorRequiredError, IgCheckpointError, IgSentryBlockError } from 'instagram-private-api';
 // import { Device } from './device'; // This file doesn't exist
 // import { Cookie } from 'tough-cookie'; // Unused
 import { promises as fs } from 'fs';
 import path from 'path';
-
-interface IgError {
-  message: string;
-}
 
 export class InstagramClient {
   public ig: IgApiClient; // Make ig public to allow direct state access
@@ -141,7 +137,7 @@ export class InstagramClient {
     }
   }
 
-  async getInbox(): Promise<any> {
+  async getInbox(): Promise<unknown> {
     console.log(`(${this.currentUserId}) Fetching inbox...`);
     if (!this.currentUserId) throw new Error("Session not properly initialized for getInbox.");
     try {
@@ -157,7 +153,7 @@ export class InstagramClient {
     }
   }
 
-  async getThread(threadId: string) {
+  async getThread(threadId: string): Promise<unknown> {
     console.log(`(${this.currentUserId}) Fetching thread ${threadId}...`);
     if (!this.currentUserId) throw new Error("Session not properly initialized for getThread.");
     try {
@@ -181,7 +177,7 @@ export class InstagramClient {
     }
   }
 
-  async sendMessage(threadId: string, message: string): Promise<any> {
+  async sendMessage(threadId: string, message: string): Promise<unknown> {
     console.log(`(${this.currentUserId}) Sending message to ${threadId}...`);
     if (!this.currentUserId) throw new Error("Session not properly initialized for sendMessage.");
     try {
