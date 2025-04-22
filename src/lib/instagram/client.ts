@@ -180,7 +180,7 @@ export class InstagramClient {
       const items = await threadFeed.items();
       return {
           thread_id: threadId, 
-          items: items,
+          items: items as Message[], 
           viewer_id: this.currentUserId 
       };
     } catch (e: unknown) {
