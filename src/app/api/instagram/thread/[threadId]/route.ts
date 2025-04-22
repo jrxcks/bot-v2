@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-// Keep minimal imports for now
-// import { InstagramClient } from '@/lib/instagram/client';
+// Restore import
+import { InstagramClient } from '@/lib/instagram/client';
 
-// Keep helper, though unused in simplified version
+// Keep helper function
 function getAuthToken(request: Request): string | null {
     const authHeader = request.headers.get('Authorization');
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -17,18 +17,16 @@ export async function GET(
 ) {
   const threadId = params.threadId;
 
-  // --- Simplified Logic Start ---
-  console.log(`Simplified GET handler called for threadId: ${threadId}`)
-  
-  // Directly return a simple response, ignoring request body/auth for now
-  return NextResponse.json({ 
-      success: true, 
-      message: `Successfully received threadId: ${threadId}`,
-      data: { threadId: threadId } // Echo back the ID
-  });
-  // --- Simplified Logic End ---
+  // --- Remove Simplified Logic Start ---
+  // console.log(`Simplified GET handler called for threadId: ${threadId}`)
+  // return NextResponse.json({ 
+  //     success: true, 
+  //     message: `Successfully received threadId: ${threadId}`,
+  //     data: { threadId: threadId }
+  // });
+  // --- Remove Simplified Logic End ---
 
-  /* --- Original Logic Commented Out ---
+  // --- Restore Original Logic Start ---
   const authToken = getAuthToken(request);
 
   if (!authToken) {
@@ -94,5 +92,5 @@ export async function GET(
       }
       return NextResponse.json({ success: false, error: errorMessage }, { status: statusCode });
   }
-  --- */
+  // --- Restore Original Logic End ---
 }
